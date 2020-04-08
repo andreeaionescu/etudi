@@ -1,23 +1,44 @@
 import requests
+from xml.etree import ElementTree
 from pprint import pprint
 
-# https://pubchem.ncbi.nlm.nih.gov/rest/pug/<input specification>/<operation specification>/[<output specification>][?<operation_options>]
 
-URL = 'https://pubchem.ncbi.nlm.nih.gov/rest/pug'
-records = ['substances', 'compounds', 'bioassays']
+URL = 'https://eutils.ncbi.nlm.nih.gov/entrez/eutils/'
 
 
-def retrive_data_by_input_specification(input_specs, output_specs, output_format):
+def parse_webenv_and_querykey(xml_root):
+    return xml_root.find('WebEnv').text, xml_root.find('QueryKey').text
+
+
+def retrieve_data_by_query(db, search_txt):
     try:
-        return requests.get(URL + '/{0}/{1}/{2}'.format(input_specs, output_specs, output_format) )
-    except Exception as e:
-        print(e)
+        url_base = URL + f'esearch.fcgi?db={db}&term={search_txt}&reldate=1&datetype=edat&retmax=10&usehistory=y'
+        response = requests.get(url_base)
+        if response.status_code == 200:
+            root = ElementTree.fromstring(response.content)
+            webenv, querykey = parse_webenv_and_querykey(root)
+
+            # assemble the esummary URL
+            esummary_url = url_base + f'esummary.fcgi?db={db}&query_key={querykey}&WebEnv={webenv}'
+            # post e-summary url
+            docs = requests.get(esummary_url)
+            docs.raise_for_status()
+
+            # include for ESearch-EFetch
+            # assemble the efetch URL
+            efetch_url = url_base + f'efetch.fcgi?db={db}&query_key={querykey}&WebEnv={webenv}&rettype=abstract&retmode=json'
+            # post the efetch URL
+            data = requests.get(efetch_url)
+            data.raise_for_status()
+            return data.json()
+
+    except requests.exceptions.RequestException as e:
+        raise SystemExit(e)
 
 
-def main():
-    aspirin_input_specs = 'compound/cid/2244'
-    aspirin_output_specs = 'property'
+if __name__ == '__main__':
+    db = 'pubmed'
+    search_txt = 'aspirin'
     output_format = 'JSON'  # XML | CSV | PNG | TXT
-    print('LOL')
-    # aspirin_record = retrive_data_by_input_specification(aspirin_input_specs, aspirin_output_specs, output_format)
-    #pprint(aspirin_record)
+    aspirin_record = retrieve_data_by_query(db, search_txt)
+    pprint(aspirin_record)  # returns an xml with UIDs to matching entries
