@@ -30,7 +30,7 @@ def retrieve_data_by_query(db, search_txt, output_format):
             # post the efetch URL
             data = requests.get(efetch_url)
             data.raise_for_status()
-            return data.json() #TODO: return body with text abstracts instead of response similar to a POST request
+            return data.json() # return body with text abstracts instead of response similar to a POST request
 
     except requests.exceptions.RequestException as e:
         raise SystemExit(e)
