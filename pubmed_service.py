@@ -3,13 +3,13 @@ import json
 
 from tornado.web import RequestHandler
 from Bio import Entrez
-from utils import display_title_abstract
+from utils import display_basic_details
 
 
 class EntrezConnection(RequestHandler):
     Entrez.email = 'abcdefg@example.com'
 
-    def __init__(self, application, request, db='pubmed', retmax='20', retmode='json', **kwargs):
+    def __init__(self, application, request, db='pubmed', retmax='250', retmode='json', **kwargs):
         self.db = db
         self.retmax = retmax
         self.retmode = retmode
@@ -33,7 +33,4 @@ class EntrezConnection(RequestHandler):
         return Entrez.read(self.entrez_handle(query))
 
     def query(self, stmt):
-        return display_title_abstract(self.entrez_read(stmt))
-
-
-
+        return display_basic_details(self.entrez_read(stmt))
