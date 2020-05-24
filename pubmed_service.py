@@ -4,6 +4,8 @@ import json
 from tornado.web import RequestHandler
 from Bio import Entrez
 from utils import display_basic_details
+from xml_parser import XmlDictConfig
+from xml.etree import cElementTree as ElementTree
 
 
 class EntrezConnection(RequestHandler):
@@ -31,6 +33,22 @@ class EntrezConnection(RequestHandler):
 
     def entrez_read(self, query):
         return Entrez.read(self.entrez_handle(query))
+
+    def entrez_link_pubmed_pmc(self, pubmed_id):
+        return Entrez.read(Entrez.elink(dbfrom='pubmed', db='pmc', LinkName="pubmed_pmc", id=pubmed_id))
+
+    def entrez_fetch_full_text(self, pubmed_id):
+        link_db = self.entrez_link_pubmed_pmc(pubmed_id)[0].get('LinkSetDb')
+        pmc_id = link_db[0].get('Link')[0].get('Id') if len(link_db) !=0 else None
+        return Entrez.efetch(db='pmc', id=pmc_id).read() if pmc_id else None
+
+    def query_full_text(self, pubmed_id):
+        entrez_fetch_full_text = self.entrez_fetch_full_text(pubmed_id)
+        if entrez_fetch_full_text:
+            root = ElementTree.XML(entrez_fetch_full_text)
+            return XmlDictConfig(root)
+        else:
+            return {'pubmed_id': pubmed_id, 'full_text': None}
 
     def query(self, stmt):
         return display_basic_details(self.entrez_read(stmt))
