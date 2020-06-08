@@ -50,9 +50,17 @@ class EntrezConnection(RequestHandler):
         entrez_fetch_full_text = self.entrez_fetch_full_text(pubmed_id)
         if entrez_fetch_full_text:
             root = ElementTree.XML(entrez_fetch_full_text)
-            return {'pubmed_id': pubmed_id, 'pmc_id': pmc_id, 'full_text': XmlDictConfig(root).get('article', None)}
+            return {
+                'pubmed_id': pubmed_id,
+                'pmc_id': pmc_id,
+                'full_text': XmlDictConfig(root).get('article', None)
+                }
         else:
-            return {'pubmed_id': pubmed_id, 'pmc_id': pmc_id, 'full_text': None}
+            return {
+                'pubmed_id': pubmed_id,
+                'pmc_id': pmc_id,
+                'full_text': None
+            }
 
     def query(self, stmt):
         return display_basic_details(self.entrez_read(stmt))
