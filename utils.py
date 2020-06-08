@@ -2,6 +2,12 @@ import datetime
 import json
 
 
+EIDTYPE_ELINK_CONFIG = {
+    'doi': 'https://doi.org/',
+    'pii': 'https://linkinghub.elsevier.com/retrieve/pii/'
+}
+
+
 class DateTimeEncoder(json.JSONEncoder):
     def default(self, o):
         if isinstance(o, datetime.datetime):
@@ -44,6 +50,13 @@ def display_basic_details(response):
     details = {}
     for article in response['PubmedArticle']:
         pmid = article['MedlineCitation']['PMID']
+        elocationid = [{
+            'EIdType': elink.attributes.get('EIdType', ''),
+            'ValidYN': elink.attributes.get('ValidYN', ''),
+            'Value': elink,
+            'Link': EIDTYPE_ELINK_CONFIG.get(elink.attributes.get('EIdType', '')) + elink
+        } for elink in article['MedlineCitation']['Article'].get('ELocationID', '')] \
+            if article['MedlineCitation']['Article']['ELocationID'] else []
 
         title = article['MedlineCitation']['Article']['ArticleTitle']
         copyright = article['MedlineCitation']['Article']['Abstract'].get('CopyrightInformation', '') \
@@ -62,6 +75,7 @@ def display_basic_details(response):
             else 'No abstract available.'
 
         details[pmid] = {
+            'ELocationID': elocationid,
             'Title': title,
             'Abstract': abstract,
             'Authors': authors,

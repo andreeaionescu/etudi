@@ -6,6 +6,7 @@ from Bio import Entrez
 from utils import display_basic_details
 from xml_parser import XmlDictConfig
 from xml.etree import cElementTree as ElementTree
+from pprint import pprint
 
 
 class EntrezConnection(RequestHandler):
@@ -63,4 +64,6 @@ class EntrezConnection(RequestHandler):
             }
 
     def query(self, stmt):
-        return display_basic_details(self.entrez_read(stmt))
+        response = self.entrez_read(stmt)
+        pprint(response)
+        return display_basic_details(response)
