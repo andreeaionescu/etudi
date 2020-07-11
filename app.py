@@ -1,8 +1,12 @@
 from tornado.web import Application, HTTPError
 from tornado.ioloop import IOLoop
+from flask import Flask, request
 from pubmed_service import EntrezConnection
 from utils import DateTimeEncoder
 import json
+
+app = Flask(__name__)
+CLIENT_URL = "https://develop.d12x3ux7nu3fim.amplifyapp.com"
 
 
 class ArticleTemplatesHandler(EntrezConnection):
@@ -11,7 +15,7 @@ class ArticleTemplatesHandler(EntrezConnection):
         self.render('templates/index.html', items=[])
 
     def set_default_headers(self, *args, **kwargs):
-        self.set_header("Access-Control-Allow-Origin", "http://localhost:8080")
+        self.set_header("Access-Control-Allow-Origin", CLIENT_URL)
         self.set_header('Access-Control-Allow-Headers', 'Origin, Content-Type, X-Auth-Token')
         self.set_header('Access-Control-Allow-Methods', 'POST, GET, OPTIONS')
 
@@ -30,7 +34,7 @@ class ArticleTemplatesHandler(EntrezConnection):
 class ArticleHandler(EntrezConnection):
 
     def set_default_headers(self, *args, **kwargs):
-        self.set_header('Access-Control-Allow-Origin', 'http://localhost:8080')
+        self.set_header('Access-Control-Allow-Origin', CLIENT_URL)
         self.set_header('Access-Control-Allow-Headers', 'Origin, Content-Type, X-Auth-Token')
         self.set_header('Access-Control-Allow-Methods', 'POST, GET, OPTIONS')
         # self.set_header('Access-Control-Allow-Credentials', 'true')
@@ -53,7 +57,7 @@ class ArticleHandler(EntrezConnection):
 class ArticleByIdHandler(EntrezConnection):
 
     def set_default_headers(self, *args, **kwargs):
-        self.set_header('Access-Control-Allow-Origin', 'http://localhost:8080')
+        self.set_header('Access-Control-Allow-Origin', CLIENT_URL)
         self.set_header('Access-Control-Allow-Headers', 'Origin, Content-Type, X-Auth-Token')
         self.set_header('Access-Control-Allow-Methods', 'POST, GET, OPTIONS')
         self.set_header('Content-Type', 'application/json')
@@ -72,11 +76,51 @@ class ArticleByIdHandler(EntrezConnection):
         self.write(json.dumps(response, cls=DateTimeEncoder))
 
 
-if __name__ == '__main__':
-    app = Application([
+def start_tornado_app():
+    server = Application([
         (r'/', ArticleTemplatesHandler),
         (r'/pubmed', ArticleHandler),
         (r'/pubmed/([0-9]+)', ArticleByIdHandler)
     ])
-    app.listen(8888)
+    server.listen(8888)
     IOLoop.instance().start()
+
+
+app = Flask('etudi')
+
+@app.after_request
+def after_request(response):
+    response.headers.add('Access-Control-Allow-Origin', '*')
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+    response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE')
+    return response
+
+
+@app.route('/pubmed', methods=["POST"])
+def article_handler():
+    entrez_connection = EntrezConnection()
+    data = request.get_json()
+    print('Got JSON data:', data)
+    text = data.get('search')
+    response = entrez_connection.query(text)
+    print('Response: ', response)
+    if not response:
+        raise HTTPError(404)
+    return json.dumps(response, cls=DateTimeEncoder)
+
+
+@app.route('/pubmed/<id>', methods=["POST"])
+def article_handler_by_id(id):
+    entrez_connection = EntrezConnection()
+    data = request.get_json()
+    print('Got JSON data:', data)
+    article_id = data.get('id')
+    response = entrez_connection.query_full_text(article_id)
+    print('Response: ', response)
+    if not response:
+        raise HTTPError(404)
+    return json.dumps(response, cls=DateTimeEncoder)
+
+
+if __name__ == '__main__':
+    app.run()

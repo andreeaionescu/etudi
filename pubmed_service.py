@@ -6,17 +6,24 @@ from Bio import Entrez
 from utils import display_basic_details
 from xml_parser import XmlDictConfig
 from xml.etree import cElementTree as ElementTree
-from pprint import pprint
 
 
-class EntrezConnection(RequestHandler):
+# patched version of Entrez.read to satisfy the dir
+def _Entrez_read(handle, validate=True, escape=False):
+    from Bio.Entrez import Parser
+    handler = Entrez.Parser.DataHandler(validate, escape)
+    handler.directory = '/tmp'  # the only difference between this and `Entrez.read`
+    record = handler.read(handle)
+    return record
+
+
+class EntrezConnection:
     Entrez.email = 'abcdefg@example.com'
 
-    def __init__(self, application, request, db='pubmed', retmax='250', retmode='json', **kwargs):
+    def __init__(self, db='pubmed', retmax='250', retmode='json'):
         self.db = db
         self.retmax = retmax
         self.retmode = retmode
-        super().__init__(application, request, **kwargs)
 
     def entrez_search(self, query, **kwargs):
         return Entrez.esearch(db=self.db, retmax=self.retmax, retmode=self.retmode, **kwargs, term=query)
@@ -33,10 +40,10 @@ class EntrezConnection(RequestHandler):
             logging.error('Something went wrong with the Entrez handle:', e)
 
     def entrez_read(self, query):
-        return Entrez.read(self.entrez_handle(query))
+        return _Entrez_read(self.entrez_handle(query))
 
     def entrez_link_pubmed_pmc(self, pubmed_id):
-        return Entrez.read(Entrez.elink(dbfrom='pubmed', db='pmc', LinkName="pubmed_pmc", id=pubmed_id))
+        return _Entrez_read(Entrez.elink(dbfrom='pubmed', db='pmc', LinkName="pubmed_pmc", id=pubmed_id))
 
     def get_pmc_from_pubmed(self, pubmed_id):
         link_db = self.entrez_link_pubmed_pmc(pubmed_id)[0].get('LinkSetDb')
@@ -65,5 +72,4 @@ class EntrezConnection(RequestHandler):
 
     def query(self, stmt):
         response = self.entrez_read(stmt)
-        pprint(response)
         return display_basic_details(response)
